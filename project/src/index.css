@@ -1,0 +1,100 @@
+* {
+	padding: 0;
+	margin: 0;
+	box-sizing: border-border-box;
+	text-decoration: none;
+	list-style: none;
+	outline: none;
+}
+
+html, body {
+	position: relative;
+	height: 100%;
+}
+
+.card {
+	display: inline-block;
+	background-color: white;
+	padding: 20px;
+	margin: 10px;
+	border-radius: 2px;
+	box-shadow: 5px 5px 5px rgba(0,0,0,0.2);
+	border: 1px solid rgba(0,0,0,0.2);
+	text-align: center;
+}
+
+.card.active {
+	box-shadow: 0 0 5px rgba(0, 0, 255, 0.5);
+}
+
+.btn {
+	padding: 6px 10px;
+	margin: 4px;
+	display: inline-block;
+	cursor: pointer;
+	border: 1px solid transparent;
+	transition: 0.7s;
+}
+
+.btn.default {
+	border-color: #aaa;
+	border-radius: 4px;
+	background-color: #ddd;
+	color: #333;
+}
+
+.btn.default:hover {
+	background-color: #bbb;
+	border-color: #aaa;
+}
+
+.btn.default:active {
+	background-color: #999;
+	border-color: #888;
+	color: #000;
+}
+
+.page {
+	background-color: #eee;
+	height: 100%;
+}
+
+.nav {
+	display: inline-block;
+	padding: 15px;
+	text-align: center;
+}
+
+.nav img,
+.card img {
+	display: block;
+	margin: auto;
+}
+
+.d-flex {
+	display: flex;
+}
+
+.flex-vcenter {
+	align-items: center;
+}
+
+.flex-hcenter {
+	justify-content: center;
+}
+
+.flex-column {
+	flex-direction: column;
+}
+
+.w100 {
+	width: 100%;
+}
+
+.h100 {
+	height: 100%;
+}
+
+.error-page {
+	background-color: white;
+}

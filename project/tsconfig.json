@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "allowJs": true,
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+        "removeComments": true,
+        "module": "commonjs",
+        "noEmit": true,
+        "target": "esnext",
+        "rootDir": "src",
+        "esModuleInterop": true,
+        "jsx": "preserve",
+        "jsxFactory": "h",
+        "plugins": [{ "transform": "../.." }]
+    },
+    "include": [
+        "./src/**/*"
+    ],
+    "awesomeTypescriptLoaderOptions": {
+
+    }
+}
