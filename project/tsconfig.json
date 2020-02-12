@@ -3,22 +3,46 @@
         "outDir": "./dist/",
         "allowJs": true,
         "sourceMap": true,
-        "noImplicitAny": true,
-        "moduleResolution": "node",
+        "noImplicitThis": false,
+        "noImplicitAny": false,
+        "alwaysStrict": true,
+        "skipLibCheck": false,
+        "strict": true,
+        "declaration": false,
         "removeComments": true,
         "module": "commonjs",
         "noEmit": true,
         "target": "esnext",
         "rootDir": "src",
         "esModuleInterop": true,
-        "jsx": "preserve",
-        "jsxFactory": "h",
-        "plugins": [{ "transform": "../.." }]
+        "jsx": "react",
+        "jsxFactory": "build",
+        "plugins": [{ "transform": "../.." }],
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictPropertyInitialization": false,
+        "moduleResolution": "node",
+        "baseUrl": "./src",
+        "paths": {
+            "@components/*": ["components/*"],
+            "@service/*": ["service/*"],
+            "@store": ["core/store/store.ts"],
+            "@core/*": ["core/*"],
+            "@model/*": ["model/*"],
+            "@pages/*": ["pages/*"],
+            "@typo": ["core/types/index"],
+            "@util/*": ["core/util/*"]
+        }
     },
     "include": [
-        "./src/**/*"
+        "./src/*"
     ],
     "awesomeTypescriptLoaderOptions": {
-
-    }
+        "useWebpackText": true,
+        "useCache": true,
+        "useTranspileModule": true,
+        "doTypeCheck": true,
+        "forkChecker": true
+    },
+    "exclude": [ "dist", "node_modules", "api", "backup", "v8-compile-cache-0", "test" ]
 }

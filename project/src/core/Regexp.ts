@@ -9,7 +9,7 @@ export const RULES: any = {
     'NAME': /^([a-zA-Z0-9 -]+)$/,
     'NAME_HUN': /^([a-zA-Z0-9ÁÉÍÓÖŐÚÜŰÔÕÛáéíóöőúüűôõû -]+)$/,
     'ADDRESS_HUN': /^([a-zA-Z0-9 ÁÉÍÓÖŐÚÜŰÔÕÛáéíóöőúüűôõû\,\.\-]+)$/,
-    'STRING': (a: string): string => a, //'ESCAPE_STRING',	// it is special
+    'STRING': (a: string): string => a, //'ESCAPE_STRING',    // it is special
     'EMAIL': /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,4}$/,
     'IP': /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
 };

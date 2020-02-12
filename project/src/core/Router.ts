@@ -1,19 +1,23 @@
-import { validate } from "./Validator";
+import { vDom } from "@core/VDom";
+import { events } from "@core/Events";
+
 import {
-	IGlobal,
-	KeyValuePair,
-	MouseClickEvent,
-	IRouter,
-} from "../types";
+    KeyValuePair,
+    IRouter,
+    IEvents
+} from "./types";
+
+import { validate } from "./Regexp";
 
 export class Router implements IRouter.Core {
-    public $scope: IGlobal.Scope;
-	public URL_DATA: IRouter.IURL_DATA;
-	public MOUSE_BUTTON: string[] = ['left', 'middle', 'right'];
+    private events = events;
+    private URL_DATA: IRouter.IURL_DATA;
+    private MOUSE_BUTTON: string[] = ['left', 'middle', 'right'];
+    public config: IRouter.Config;
+    public currentRoute: string;
     public history: IRouter.HistoryItem[] = [];
-	public data: IRouter.Data | object = {};
 
-    constructor(public config: IRouter.Config) {
+    constructor() {
         const { protocol, hostname } = location as Location;
         const baseDir = '';   // it is empty if project is in root directory
         this.URL_DATA = {
@@ -31,14 +35,27 @@ export class Router implements IRouter.Core {
             }
         }
 
-        this.$scope = config.$scope;
-		this.$scope.$router = this;
-		this.onClick = this.onClick.bind(this);
-		this.onBack = this.onBack.bind(this);
+        this.onClick = this.onClick.bind(this);
+        this.onBack = this.onBack.bind(this);
         this.registerRouter();
+        this.getFullUrl();
     }
 
-    registerRouter() {
+    public getFullUrl(url: string = '') {
+        const root = this.URL_DATA.BASE.ROOT;
+        if (root.substr(-1) !== '/' && url && url[0] !== '/') url = '/' + url;
+        return root + url;
+    }
+
+    public init(config: IRouter.Config): void {
+        this.config = config;
+        const { URL } = this.getPath();
+        this.history.push({ url: URL, title: '', props: null});
+        this.dispatchRoute(URL);
+    }
+
+    // we must assign click and popstate global listener after page loaded
+    private registerRouter(): void {
         if (document.readyState === 'complete') {
             this.createGlobalClickEvent();
         } else {
@@ -46,75 +63,104 @@ export class Router implements IRouter.Core {
                 document.readyState === 'complete' && this.createGlobalClickEvent();
             };
         }
-		const { URL } = this.getPath();
-        this.dispatchRoute(URL);
     }
 
-    createGlobalClickEvent() {
-		const controller = this.$scope.controller;
-		controller.addEventListener('click', [this.onClick]);
-		controller.addEventListener('popprops', [this.onBack]);
-		// --------------------------------------------
+    // register our events in events instance, register the events like in event instance
+    private createGlobalClickEvent(): void {
+        this.events.addListener(true, 'click', this.onClick as any);
+        this.events.addListener(true, 'popstate', this.onBack);
     }
 
-	redirect(url?: string, title?: string, props?: object) {
+    // check the gived routes and if everything ok then redirect the page
+    public redirect(url?: string, title?: string, props: object | null = null, noHistory: boolean = false): void {
         const { ROOT } = this.URL_DATA.BASE;
         const { URL } = this.getPath();
 
-        if (url) {
-            if (url === URL) { return; }
-			history.pushState(null, title, ROOT + '/' + URL);
-            history.replaceState(null, title, ROOT + url);
-			this.history.push({url, title, props});
-        }
+        if (!url || url === URL) return;
+        this.addHistory(url, title, props, noHistory);
         this.dispatchRoute(url);
     }
 
-	onBack(event: PopStateEvent): void {
-        if (!this.history.length) { return; }
-        const { url, title, props } = this.history.pop();
+    private addHistory(url: string, title?: string, props?: KeyValuePair<any> | null, noHistory?: boolean) {
+        const { ROOT } = this.URL_DATA.BASE;
+        history.pushState(null, title || '', ROOT + url);
+        history.replaceState(null, title || '', ROOT + url);
+        if (!noHistory) this.history.push({ url, title, props: props });        
+    }
+
+    // check the gived routes and if everything ok then redirect the page
+    public removeLastUrlChunk(): void {
+        if (!this.history.length) return;
+        const { title, url } = this.history[this.history.length - 1];
+        const newUrl = (url[0] === '/' ? '' : '/') + url.split('/').slice(0, -1).join('/');
+        this.addHistory(newUrl, title);
+    }
+
+    public replaceUrlChunk(newChunk: string, pos: number = -1, title?: string) {
+        const newUrl = this.currentRoute.split('/');
+        newUrl.splice(-1, 1, newChunk);
+        if (!title && this.history.length) title = this.history[this.history.length - 1].title;
+        this.addHistory(newUrl.join('/'), title);
+    }
+
+    private isValidUrl = (url: string): boolean => {
+        if (!url.startsWith('http')) url = 'https://' + url;
+        try {
+            new URL(url);
+            return true;
+        } catch (err) {
+            return false;  
+        }
+    }
+
+    // popstate callback which fired when user click to back button in the browser
+    private onBack(event: IEvents.Event): void {
+        const length = this.history.length;
+        console.log('BACK', length, this.history)
+        if (length < 2) return history.back();
+        this.history.pop();
+        const { url, title, props } = this.history[length-2] as IRouter.HistoryItem;
         this.redirect(url, title, props);
-        // history.back();
         event.preventDefault();
         // Uncomment below line to redirect to the previous page instead.
         // window.location = document.referrer // Note: IE11 is not supporting this.
         // history.pushprops(null, null, window.location.pathname);
     }
 
-	getTarget(e: HTMLElement): string {
-		const MAX_DEPTH = 3;
+    // check if parent element got href (=potentional internal link) attribute or no (max 3 level)
+    private getTarget(e: HTMLElement): string | void {
+        const MAX_DEPTH = 3;
         let t = e, i = 0, href;
         for (; i < MAX_DEPTH; i++) {
             if (href = t.getAttribute("href")) {
                 break;
             } else {
-                if (!(t = t.parentElement)) { return 'no href on clicked target also no parent';}
+                t = t.parentElement as HTMLElement;
+                if (!t) return console.warn('no href on clicked target also no parent');
             }
         }
-		return href
-	}
+        return href
+    }
 
-    onClick (event: MouseClickEvent): void {
+    // click handler for internal links
+    private onClick (event: MouseEvent): void {
         if (event.button > 0) {
             return console.log('it was not left click, it was '+(this.MOUSE_BUTTON[event.button] || 'unknow')+' button');
         }
-		const href = this.getTarget(event.target);
-
-        if (!href) { return console.log('no href where i clicked'); }
+        const t = event.target as HTMLElement;
+        const href = this.getTarget(t);
+        if (!href) return;
         // internal link handle redirect(url)
         if (href[0] === "/") {
-            console.info('internal page link was detected', href);
             event.preventDefault();
             this.redirect(href);
-        /*
-        	} else if (href === '*') {
-        */
         } else {
             console.log('normal link redirect to other page');
         }
     }
 
-    getPath() {
+    // split the current url into query strings, hash, base url etc
+    private getPath() {
         const { ROOT } = this.URL_DATA.BASE;
         const HASH = window.location.hash;
         const href = encodeURI(location.href);
@@ -128,7 +174,6 @@ export class Router implements IRouter.Core {
                 QUERY[key] = value;
             });
         }
-
         return this.URL_DATA.DYNAMIC = {
             ...this.URL_DATA.DYNAMIC,
             HASH: HASH.replace('#', ''),
@@ -137,79 +182,86 @@ export class Router implements IRouter.Core {
         };
     }
 
-	validateRoute(config: IRouter.Route, data: IRouter.Data): IRouter.Data | false {
-		const urlArray = data.urlArray.slice(data.depth);
-		const params: KeyValuePair<string> = {};
-		const [chunk, validations, VComponent, childConfig] = config;
-		const chunkArray = chunk.split('/');
+    // go over on routes and check if the given url is fulfilled all condition
+    private validateRoute(config: IRouter.Route, data: IRouter.Data): IRouter.Data | undefined {
+        const urlArray = data.urlArray.slice(data.depth);
+        const params: KeyValuePair<string> = {};
+        const [chunk, validations, VComponent, childConfig] = config;
+        const chunkArray = chunk.split('/');
 
-		if (chunkArray.length > urlArray.length) {
-			return false;
-		}
+        if (chunkArray.length === 1 && !chunkArray[0] && !urlArray.length) {
+            // default route
+        } else if (chunkArray.length > urlArray.length) {
+            return;
+        } else {
+            for (let [i, v] of chunkArray.entries()) {
+                if (!v) return;
+                if (v[0] === ':') {
+                    v = v.substr(1);
+                    if (validations) {
+                        const validation = validations[Object.keys(params).length];
+                        if (!validate(urlArray[i], validation)) return;
+                    }
+                    params[v] = urlArray[i];
+                } else {
+                    if (v !== urlArray[i]) return;
+                }
+            }
+        }
 
-		for (let [i, v] of chunkArray.entries()) {
-			if (!v) { return false; }
-			if (v[0] === ':') {
-				v = v.substr(1);
-				const validation = validations[Object.keys(params).length];
-				if (!validate(urlArray[i], validation)) { return false;}
-				params[v] = urlArray[i];
-			} else {
-				if (v !== urlArray[i]) { return false; }
-			}
-		}
+        data.depth += chunkArray.length;
+        Object.assign(data.params, {...params});
+        data.components.unshift(VComponent);
 
-		data.depth += chunkArray.length;
+        // if exist child and we still have remining chunk in current url then go deeper
+        if (Array.isArray(childConfig) && data.depth < data.urlArray.length) {
+            return this.validateRoute(childConfig, data);
+        }
 
-		Object.assign(data.params, {...params});
-		data.components.unshift(VComponent);
+        data.matchedUrl = '/' + data.urlArray.join('/');
+        return data;
+    }
 
-		// Component.defaultProps = { ...Component.defaultProps, ...params };
-		// if exist child and we still have remining chunk in current url then go deeper
-		if (Array.isArray(childConfig) && data.depth < data.urlArray.length) {
-			// const [,,Child,] = childConfig;
-			// Component.Childs = { ...Component.Childs, route: Child };
-			return this.validateRoute(childConfig, data);
-		}
+    private setCurrentRoute(result: IRouter.Data): void {
+        this.currentRoute = result.matchedUrl;
+    }
 
-		//if (Component.Childs.route) {
-		//	delete Component.Childs.route;
-		//}
+    // send the given url to validation and call loadPage or redirect depend if we found an matched route or no
+    private dispatchRoute(url: string): void {
+        this.URL_DATA.DYNAMIC.PARAMS = {};
+        let result: IRouter.Data | false | undefined;
 
-		data.matchedUrl = '/' + data.urlArray.join('/');
-		return data;
-	}
+        const defaultData: IRouter.Data = {
+            depth: 0,
+            components: [],
+            params: {},
+            matchedUrl: '',
+            urlArray: url.split('/').filter(e => e),
+            matchedRoute: []
+        }
+        const routeMap = this.config.$routeList;
+        for (const config of routeMap) {
+            result = this.validateRoute(config, {...defaultData, matchedRoute: config});
+            if (!!result) { break; }
+        }
 
-    dispatchRoute(url: string): void {
-		this.URL_DATA.DYNAMIC.PARAMS = {};
-		let result: IRouter.Data | false;
-
-		const defaultData: IRouter.Data = {
-			depth: 0,
-			components: [],
-			params: {},
-			matchedUrl: '',
-			urlArray: url.split('/').filter(e => e),
-			matchedRoute: []
-		}
-		const routeMap = this.config.$routeList;
-		for (const config of routeMap) {
-			result = this.validateRoute(config, {...defaultData, matchedRoute: config});
-			if (!!result) { break; }
-		}
-
-
-		const { success, error } = this.config;
-		if (!!result) {
-			// this.redirect();
-			this.URL_DATA.DYNAMIC.PARAMS = result.params;
-			console.log('Route was correct!', result);
-			if (success) { success(result); }
-			this.$scope.controller.loadPage(result.components, result.params);
-		} else {
-			console.log('Route missmatch!', url);
-			if (success) { error(url); }
-			this.redirect('/error/404');
-		}
+        const { success, error } = this.config;
+        if (!!result) {
+            // this.redirect();
+            this.URL_DATA.DYNAMIC.PARAMS = result.params;
+            this.setCurrentRoute(result);
+            if (success) { success(result); }
+            vDom.loadPage(result.components, result.params);
+        } else {
+            console.log('Route missmatch!', url);
+            if (error) { error(url); }
+            this.redirect('/error/404', '', {}, true);
+        }
     }
 };
+
+export const router = new Router();
+
+// test purpose
+// @ts-ignore
+window.router = router;

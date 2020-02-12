@@ -2,10 +2,11 @@
   "name": "myframework",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
+  "main": "index.tsx",
   "scripts": {
     "dev": "webpack-dev-server --mode development --open",
     "start": "webpack -p && node server.js",
+    "build": "tsc",
     "check-types": "tsc"
   },
   "author": "",
@@ -19,6 +20,7 @@
     "awesome-typescript-loader": "^5.2.1",
     "babel-loader": "^8.0.6",
     "typescript": "^3.5.1",
-    "webpack": "^4.33.0"
+    "webpack": "^4.33.0",
+    "webpack-cli": "^3.3.11"
   }
 }
