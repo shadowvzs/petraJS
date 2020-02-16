@@ -1,13 +1,12 @@
-import { vDom } from "@core/VDom";
-import { events } from "@core/Events";
-
 import {
     KeyValuePair,
     IRouter,
     IEvents
 } from "./types";
 
-import { validate } from "./Regexp";
+import { validate } from "./RegExp";
+import { vDom } from "@core/VDom";
+import { events } from "@core/Events";
 
 export class Router implements IRouter.Core {
     private events = events;
@@ -67,7 +66,7 @@ export class Router implements IRouter.Core {
 
     // register our events in events instance, register the events like in event instance
     private createGlobalClickEvent(): void {
-        this.events.addListener(true, 'click', this.onClick as any);
+        this.events.addListener(true, 'click', this.onClick);
         this.events.addListener(true, 'popstate', this.onBack);
     }
 
@@ -114,7 +113,7 @@ export class Router implements IRouter.Core {
     }
 
     // popstate callback which fired when user click to back button in the browser
-    private onBack(event: IEvents.Event): void {
+    private onBack(event: Event): void {
         const length = this.history.length;
         console.log('BACK', length, this.history)
         if (length < 2) return history.back();
@@ -143,9 +142,10 @@ export class Router implements IRouter.Core {
     }
 
     // click handler for internal links
-    private onClick (event: MouseEvent): void {
-        if (event.button > 0) {
-            return console.log('it was not left click, it was '+(this.MOUSE_BUTTON[event.button] || 'unknow')+' button');
+    private onClick (event: Event): void {
+        const ev = event as MouseEvent;
+        if (ev.button > 0) {
+            return console.log('it was not left click, it was '+(this.MOUSE_BUTTON[ev.button] || 'unknow')+' button');
         }
         const t = event.target as HTMLElement;
         const href = this.getTarget(t);
@@ -154,6 +154,13 @@ export class Router implements IRouter.Core {
         if (href[0] === "/") {
             event.preventDefault();
             this.redirect(href);
+        } else if (href === '*') {
+            /*
+            if (t.getAttribute('download')) {
+                const url = t.getAttribute('download');
+                if (this.isValidUrl(url)) fs.download(url);
+            }
+            */
         } else {
             console.log('normal link redirect to other page');
         }
@@ -211,7 +218,7 @@ export class Router implements IRouter.Core {
 
         data.depth += chunkArray.length;
         Object.assign(data.params, {...params});
-        data.components.unshift(VComponent);
+        data.components.push(VComponent);
 
         // if exist child and we still have remining chunk in current url then go deeper
         if (Array.isArray(childConfig) && data.depth < data.urlArray.length) {
@@ -247,11 +254,10 @@ export class Router implements IRouter.Core {
 
         const { success, error } = this.config;
         if (!!result) {
-            // this.redirect();
             this.URL_DATA.DYNAMIC.PARAMS = result.params;
             this.setCurrentRoute(result);
             if (success) { success(result); }
-            vDom.loadPage(result.components, result.params);
+            this.config.vDom.loadPage(result.components, result.params);
         } else {
             console.log('Route missmatch!', url);
             if (error) { error(url); }

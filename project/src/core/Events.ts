@@ -1,5 +1,4 @@
 import {
-    IGlobal,
     KeyValuePair,
     IEvents
 } from "./types";
@@ -13,7 +12,7 @@ function CloneMouseEvent( e: KeyValuePair<any> ): void {
         this[k] = e[k];
     }
     this.original = e;
-    this.prevent = function() { this.original.preventDefault(); }
+    this.preventDefault = function() { this.original.preventDefault(); }
 }
 
 class Events implements IEvents.Core {
@@ -30,14 +29,14 @@ class Events implements IEvents.Core {
     }
 
     // create an event object from original event
-    private clone($node: Element, event: IEvents.Event): IEvents.Event {
-        const newEvent = new (CloneMouseEvent as any)(event);
+    private clone($node: Element, event: Event): Event {
+        const newEvent = new CloneMouseEvent(event);
         newEvent.target = $node;
         return newEvent;
     }
 
     // if an event was fired then we go over on every callback which was assigned to this event type (ex. click)
-    private onDispatch(event: IEvents.Event): void {
+    private onDispatch(event: Event): void {
         const type: string = event.type;
         if (~this.autoPreventable.indexOf(type)) event.preventDefault();
         this.listeners[type].forEach(([c, cb]: IEvents.Listener) => {
@@ -76,7 +75,7 @@ class Events implements IEvents.Core {
     }
 
     // remove an eventlistener callback
-    public removeListener(condition: IGlobal.DOM | IEvents.EventCallback, type?: string): void {
+    public removeListener(condition: HTMLElementEx | IEvents.EventCallback, type?: string): void {
         let oldTypes: string[];
         let filter: (arg0: any) => boolean;
         // console.log('remove listener', arguments)

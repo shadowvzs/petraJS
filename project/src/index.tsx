@@ -4,6 +4,8 @@ import { IRouter } from "@typo";
 import HomePage from "./HomePage";
 import ArticlePage from "./ArticlePage";
 
+import { vDom } from "@core/VDom";
+
 // Hacky console LOGO message 4 fun
 console.log('%c PetraJS', 'color:white;font-size: 56px;text-shadow: 1px 0 1px #000, 0 1px 1px #000, -1px 0 1px #000, 0 -1px 1px #000,5px 5px 5px rgba(0,0,0,0.5);font-weight: bold;background:linear-gradient(to bottom, #ddf,#88a, #ddf);width:7em;display:block;text-align:center;border-radius:50px 0 50px 0;border:1px solid #000;margin: 20px auto;box-shadow: 0 0 10px 10px rgba(0,0,100,0.3);font-family:arial;')
 
@@ -17,6 +19,7 @@ const routeMap: IRouter.Route[] = [
 const routerConfig: IRouter.Config = {
     // route map and this we pass to router class
     $routeList: routeMap,
+    vDom: vDom,
     // callback for valid routes, debug purpose
     success: (routeData: IRouter.Data) => { console.log('%c Route matched callback', 'color:#070;font-size:14px;', routeData.matchedUrl) },
     // callback for invalid routes, debug purpose

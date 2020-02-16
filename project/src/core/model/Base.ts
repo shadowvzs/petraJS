@@ -88,13 +88,14 @@ export function addValidation<T>(rule: string, message: string, options: IValida
     return (x: string, o?: T) => false;
 };
 
+type IDecoratorSignature = any;
 export function CV<T>(rule: string, message: string, options: IValidatorOption<T> = []) {
     return function (target: IBaseModel<T>, property: string, descriptor: PropertyDecorator) {
         if (!target.$validation) { target.$validation = {}; }
         if (!target.$validation[property]) { target.$validation[property] = []; }
         target.$validation[property].push(addValidation(rule, message, options));
         return descriptor;
-    } as any;
+    } as IDecoratorSignature;
 }
 
 
@@ -105,7 +106,7 @@ export interface IBaseModel<T> {
     $validation: IValidation<T>;
     getValues: () => T;
     getError: (key?: Partial<keyof T>) => IValidationError[];
-    inputConnector: (arg0: Event) => boolean;
+    inputConnector: (arg0: KeyboardEvent) => boolean;
     runValidations: () => void;
     getProps: (fieldList: Partial<keyof T>[]) => Partial<T>;
     setProps: (arg0: ObjPartAny<T>) => void;
@@ -149,7 +150,7 @@ class BaseModel<T> implements IBaseModel<T> {
         return !(this[errorSymbolKey][key] as IValidationError[]).length;
     }
 
-    public inputConnector = (ev: Event): boolean => {
+    public inputConnector = (ev: KeyboardEvent): boolean => {
         const { name, value } = ev.target as unknown as { name: keyof T, value: string };
         (this as Record<keyof T, any>)[name] = value;
         return this.validator(name, value);

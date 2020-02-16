@@ -4,7 +4,11 @@ import { createStyles } from "@core/JSS";
 const css = createStyles({
     table: {
         margin: '20px auto',
-        backgroundColor: '#eee'
+        minWidth: 700,
+        backgroundColor: '#eee',
+        '& th': {
+            backgroundColor: '#ddd'
+        }
     }
 });
 
@@ -52,7 +56,7 @@ const UserTable = ({ initId }: UserTableProps): JSX.Element => {
 
     return (
         <div style='text-align:center'>
-            <table className={css.table}>
+            <table className={css.table} border="1">
                 <tr>
                     <th>id</th>
                     <th>name</th>

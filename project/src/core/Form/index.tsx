@@ -2,7 +2,7 @@ import { IModel, IValidationError, FormSymbolKey } from "@core/model/Base";
 import { notify } from "@core/Notify";
 import { build, renderSubTree } from "@core/VDom";
 import { createStyles } from "@core/JSS";
-import { KeyValuePair, IVDOM, IGlobal } from "@typo";
+import { KeyValuePair } from "@typo";
 
 /**
  * Style part
@@ -40,9 +40,9 @@ const formStyles = createStyles({
  * Common onChange and  Error handlers for form inputs
  */
 
-type IErrorHelper = (errors: IValidationError[]) => IVDOM.Children;
+type IErrorHelper = (errors: IValidationError[]) => JSX.Element;
 
-function defaultErrorHelper(errors: IValidationError[] = []): IVDOM.Children {
+function defaultErrorHelper(errors: IValidationError[] = []): JSX.Element {
     return (
         <div className='helper-text'>
             {errors.map(x => <div>{x.message}</div>)}
@@ -56,7 +56,7 @@ function showHelperText<T>(model: IModel<T>): (name: keyof T) => void {
         const errors = model.getError(name);
         el.setAttribute('error-message', (errors.length > 0).toString());
         try {
-            const helperDiv = el.nextSibling as IGlobal.DOM;
+            const helperDiv = el.nextSibling as HTMLElementEx;
             if (!helperDiv) return;
             renderSubTree(helperDiv, model[FormSymbolKey]['errorHelper'], errors);
         } catch (err) {
@@ -74,8 +74,8 @@ function onChangeHelper<T>(el: HTMLInputElement, model: IModel<T>): void {
     if (model[FormSymbolKey]['showHelperText']) model[FormSymbolKey]['showHelperText'](name);
 }
 
-function onChangeHandler<T>(model: IModel<T>): (ev: Event) => void {
-    return (ev: Event) => onChangeHelper(ev.target as HTMLInputElement, model)
+function onChangeHandler<T>(model: IModel<T>): (ev: KeyboardEvent) => void {
+    return (ev: KeyboardEvent) => onChangeHelper(ev.target as HTMLInputElement, model)
 }
 
 /**
@@ -84,7 +84,7 @@ function onChangeHandler<T>(model: IModel<T>): (ev: Event) => void {
 
 interface IFormProps<T> {
     autocomplete?: 'on' | 'off';
-    children?: IVDOM.Children | IVDOM.Children[];
+    children?: JSX.Element | JSX.Element[];
     className?: string | any;
     errorHelper?: IErrorHelper;
     helperText?: boolean;
@@ -94,7 +94,7 @@ interface IFormProps<T> {
 }
 
 function onSubmitHandler<T>(onSubmit: IFormProps<T>['onSubmit'] , model: IModel<T>): () => false {
-    return (e?: Event) => {
+    return (e?: KeyboardEvent) => {
         model.runValidations();
         const errors = model.getError();
         errors.length 
@@ -181,7 +181,7 @@ export function Input<T>(props: IInput<T>): JSX.Element {
         type,
         ...inputProp
     } as IInputProps;
-    let child: IVDOM.Children;
+    let child: JSX.Element;
     let errHelper: IErrorHelper | null = null;
 
     if (type === 'textarea') {

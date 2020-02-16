@@ -5,15 +5,15 @@ import {
 
 /* Array methods */
 
-export function flat<T>(arr: T[], depth: number = 1) {
+export function flat<T>(arr: T[] | T[][], depth: number = 1) {
     const arrLen = arr.length;
     const final: T[] = [];
     let i = 0;
     for(; i < arrLen; i++) {
         if (Array.isArray(arr[i])) {
-            concat(final, depth ? flat(arr[i] as any, depth - 1) : arr[i] as any);
+            concat(final, depth ? flat<T>(arr[i] as T[], depth - 1) : arr[i] as T[]);
         } else {
-            final.push(arr[i]);
+            final.push(arr[i] as T);
         }
     }
     return final;

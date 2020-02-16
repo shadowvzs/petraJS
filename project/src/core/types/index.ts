@@ -1,3 +1,31 @@
+export interface IGallery extends IEntity {
+    description: string;
+    name: string;
+    slug: string;
+    status: number;
+    thumb: string;
+    title: string;
+    user_id: number;
+}
+
+export interface IImage extends IEntity {
+    album_id: number;
+    description: string;
+    status: number;
+    path: string;
+    user_id: number;
+}
+
+export interface INews extends IEntity {
+    user_id?: number;       // who created
+    status?: number;
+    title: string;
+    message: string;
+    name: string;           // author name
+}
+
+export interface IGuest extends IEntity {}
+
 export interface IEntity {
     id: number;
     created: string;
@@ -12,6 +40,48 @@ export interface IFPromise<T> extends Promise<T> {
 }
 
 export type IFP<T> = IFPromise<IRequest.ApiResponse<T>>
+
+export declare namespace IFileUploader {
+
+    interface FileInputConfig {
+        timerId: number;
+        timeout: number;
+        timeoutCb: () => void;
+    }
+
+    type SimpleReadAs = 'text' | 'data' | 'buffer' | 'binary' | 'json';
+    type ReadAs = 'readAsText' | 'readAsDataURL' | 'readAsArrayBuffer' | 'readAsBinaryString';
+
+    interface Progress {
+        index: number;
+        name: string;
+        uploaded: number;
+        size: number;
+        error?: boolean;
+    }
+}
+
+export declare namespace IFS {
+    interface FileInputConfig {
+        timerId: number;
+        timeout: number;
+        timeoutCb: () => void;
+    }
+
+    type SimpleReadAs = 'text' | 'data' | 'buffer' | 'binary' | 'json';
+    type ReadAs = 'readAsText' | 'readAsDataURL' | 'readAsArrayBuffer' | 'readAsBinaryString';
+
+    interface Chunk {
+        current: number;
+        size: number;
+        part: string;
+        total: number;
+        type: string;
+        name: string;
+        temp: string;
+        data: Blob;
+    }
+}
 
 /*
 ----------------------------------------------
@@ -28,30 +98,6 @@ export interface KeyValuePair<T> {
 }
 
 export type ValueOf<T> = T[keyof T];
-
-export declare namespace IGlobal {
-
-    export interface DOM extends HTMLElement {
-        childNodes: NodeListOf<ChildNode>;
-        dataset: KeyValuePair<string>;
-        isMounted?: boolean;
-        nodeType: number;
-        setAttribute: (key: string, value: any) => void;
-        uuid?: string;
-        vRef?: IVDOM.Children;
-    }
-
-    export interface Scope {
-        store: any;
-        services: any;
-        vDom: IVDOM.Core,
-        events: IEvents.Core,
-        router?: IRouter.Core;
-        config: {
-            root: HTMLElement
-        }
-    }
-}
 
 export type IGlobalEventConfig = [any, string];
 
@@ -107,6 +153,32 @@ export declare namespace IRequest {
     }
 }
 
+/*
+----------------------------------------------
+--------------------- CRUD -------------------
+----------------------------------------------
+*/
+
+export declare namespace ICRUD {
+
+    interface Config {
+        endpoint: string;
+        credentials?: KeyValuePair<string>;
+    }
+
+    interface Core<T> {
+        auth: any;
+        notify: any;
+        request: any;
+        post: (arg0: T) => IRequest.Response<T>;
+        get: (arg0?: any) =>  IRequest.Response<T>;
+        put: (arg0: Partial<T>) => IRequest.Response<T>;
+        delete: (arg0: string | any) => IRequest.Response<boolean>;
+        getUrl: (arg0: string) => string;
+    }
+
+}
+
 export declare namespace JSS {
     type StyleRule = { [key: string]: string | number };
 
@@ -118,90 +190,12 @@ export declare namespace JSS {
 }
 
 /*
-----------------------------------------------
----------------- Virtual DOM -----------------
-----------------------------------------------
-*/
-
-export declare namespace IVDOM {
-    type Childrens = Children[];
-    type NodeModifier1 = (arg0?: IGlobal.DOM) => IGlobal.DOM;
-    type NodeModifier2 = (arg0?: IGlobal.DOM) => undefined;
-    type NodeModifier = NodeModifier1 | NodeModifier2;
-    type CallSignature = (arg0: Childrens, params: KeyValuePair<string>) => Children;
-    type partialChildren = Pick<Children, 'attrs' | 'children'>;
-    type Event = MouseEvent | KeyboardEvent | PopStateEvent;
-    type EventHandler = (event: Event) => void;
-    type Update = ($node: IGlobal.DOM) => IGlobal.DOM;
-    type ISetRef = (ref: HTMLElement) => void;
-    type UseState<S> = [S, (state: S) => void]
-    type Ref = { current: HTMLElement | null };
-    interface Hook<S = any, P = any> {
-        id: Symbol;
-        props?: KeyValuePair<any>;
-        state?: S;
-        vElem?: IVDOM.Children;
-        build?: (props: P) => JSX.Element;
-        effect?: Effect;
-        setter?: (state: S) => void;
-    }
-
-    type EffectCbFn = () => void;
-    type EffectCb = () => EffectCbFn | void;
-    type EffectDep = any[] | undefined;
-    interface Effect {
-        mountCb: EffectCb;
-        unmountCb?: EffectCb;
-        dep: EffectDep;
-        lastDep?: string;
-        shouldRun?: boolean;
-    }
-   
-    interface HookMap {
-        [Symbol.toStringTag](): Hook;
-    }
-        
-    interface IFallbackProps {
-        ref: ISetRef
-    }
-    
-    interface ILoader<T> {
-        fallback?: (props: T) => IVDOM.Children | IVDOM.Children;
-        promise: IFPromise<any>;
-        final: (props: T) => IVDOM.Children | IVDOM.Children;
-        [key: string]: any;
-    }
-
-    interface Children {
-        attrs: KeyValuePair<any>,
-        children: Childrens;
-        $elem?: IGlobal.DOM;
-        nodeType?: 0;
-        parent?: Children;
-        tagName: string;
-    }
-
-    interface Core {
-        $App: IGlobal.DOM;                  // inserted real DOM tree
-        $root: IGlobal.DOM;                 // root where we insert our tree
-        App: IVDOM.Children;                // Virtual DOM tree
-        ce: (tagName: string, arg1: partialChildren) => Children;
-        insertChild: ($el: IGlobal.DOM, vChild: IVDOM.Children) => void;
-        loadPage: (routeComponents: IVDOM.CallSignature[], params: KeyValuePair<string>) => void;
-        renderSubTree: ($oldElem: IGlobal.DOM, Cmp: (arg0: any) => JSX.Element, props: any) => void;
-        // renderSubTree: ($oldElem: IGlobal.DOM, newTree: IVDOM.Children) => void;
-        renderWholeTree: (vComponent: IVDOM.Children) => void;
-    }
-}
-
-/*
 -------------------------------------------------
 ----------------- Event Handler -----------------
 -------------------------------------------------
 */
 
 export declare namespace IEvents {
-    type Event = (MouseEvent | KeyboardEvent | PopStateEvent) & { prevent?: () => void };
     type EventCallback = (event: Event) => void;
 
     type EventCondition = (event: Event) => boolean;
@@ -215,7 +209,7 @@ export declare namespace IEvents {
 
     interface Core {
         addListener: (condition: IEvents.Condition, type: string, cb: IEvents.EventCallback) => void;
-        removeListener: (condition: IGlobal.DOM | IEvents.EventCallback, type?: string) => void;
+        removeListener: (condition: HTMLElementEx | IEvents.EventCallback, type?: string) => void;
     }
 }
 
@@ -243,11 +237,16 @@ export declare namespace IRouter {
         matchedUrl: string;
         params: KeyValuePair<string>;
         urlArray: string[];
-        components: (() => IVDOM.Children)[];
+        components: (() => JSX.Element)[];
+    }
+
+    type ILoadPAge = {
+        loadPage: (arg0: Data['components'], arg1: Data['params']) => void;
     }
 
     export interface Config {
         $routeList: Route[];
+        vDom: ILoadPAge;
         defaultRoute?: Route;
         error?: (url: string) => void;
         success?: (data: Data) => void;

@@ -14,7 +14,7 @@ const css = createStyles({
     }
 });
 
-const ArticlePage = (childs: JSX.Element[], props: KeyValuePair<string>): JSX.Element => {
+const ArticlePage = (props: KeyValuePair<string> = {}): JSX.Element => {
     document.title = `Article Page`;
     console.log(props)
     return (
@@ -23,7 +23,7 @@ const ArticlePage = (childs: JSX.Element[], props: KeyValuePair<string>): JSX.El
             <div className={css.box}>
                 <h3>Props:</h3>
                 { Object.entries(props).map(([name, value]) => (
-                    <div><b>{name}</b>: {value}</div>
+                    <div><b>{name}</b>: {typeof value === 'string' ? value : JSON.stringify(value)}</div>
                 )) }
             </div>
         </div>

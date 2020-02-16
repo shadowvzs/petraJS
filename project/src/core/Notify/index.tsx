@@ -2,7 +2,6 @@
 import { events } from "@core/Events";
 import { build, renderElem } from "@core/VDom";
 import { createStyles } from "@core/JSS";
-import { IVDOM } from '@core/types';
 
 const notificationStyles = createStyles({
     '& .notify-container': {
@@ -42,7 +41,7 @@ const notificationStyles = createStyles({
                 borderColor: 'rgba(0, 0, 200, 0.9)',
                 backgroundColor: 'rgba(0, 0, 200, 0.5)'
             },       
-            '&..success': {
+            '&.success': {
                 borderColor: 'rgba(100, 100, 255, 0.9)',
                 backgroundColor: 'rgba(100, 100, 255, 0.5)'
             },        
@@ -80,16 +79,12 @@ const notificationStyles = createStyles({
     }
 });
 
-const Container = () => {
-    return (
-        <div className='notify-container' />
-    );
-};
+type IAvaliableNotifyTypes = 'success' | 'error' | 'warning' | 'normal';
 
 interface IMessage {
     closeClass: string;
-    message: string | IVDOM.Children | IVDOM.Children[];
-    onTransitionEnd: (event: Event) => void;
+    message: string | JSX.Element | JSX.Element[];
+    onTransitionEnd: (event: KeyboardEvent) => void;
     type: string; 
 }
 
@@ -103,7 +98,7 @@ const Message = ({ closeClass, message, onTransitionEnd, type }: IMessage) => {
 };
 
 class Notify {
-    private container: HTMLDivElement = renderElem(Container()) as HTMLDivElement;
+    private container: HTMLDivElement;
     private events = events;
     private map = new WeakMap();
     private NOTIFY_DURATION = 2000;
@@ -112,7 +107,9 @@ class Notify {
     private TRANSITION_CLASS = 'slidein';
 
     constructor() {
-        document.body.appendChild(this.container);
+        document.body.appendChild(renderElem(
+            <div className='notify-container' ref={[this, 'container']} />
+        ));
         this.events.addListener(true, 'click', this.onClick);
     }
 
@@ -123,7 +120,7 @@ class Notify {
         }
     }
 
-    public send(type: string, message: string | IVDOM.Children | IVDOM.Children[]) {
+    public send(type: IAvaliableNotifyTypes, message: string | JSX.Element | JSX.Element[]) {
         const newMsg = renderElem(Message({ type, message, onTransitionEnd: this.onTransitionEnd, closeClass: this.CLOSE_CLASS}));
         const timer = setTimeout(
             () => this.map.get(newMsg) && newMsg.classList.remove(this.TRANSITION_CLASS),

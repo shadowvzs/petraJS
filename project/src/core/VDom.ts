@@ -1,39 +1,76 @@
 import {
-    IGlobal,
     KeyValuePair,
-    IVDOM,
     IEvents
 } from "./types";
 import { concat, map, toArray, forEach, objFor, flat, objMerge } from "@util/performance";
 import { classAutobind } from "@util/core";
 import { events } from "./Events";
-import { fPromise } from '@util/core';
 import { toStyle } from "./JSS";
 
-type IAttrs = IVDOM.Children['attrs'];
-type IChilds = IVDOM.Children['children'];
+type IAttrs = JSX.Element['attrs'];
+type IChilds = JSX.Element['children'];
 type ITagName = string;
 
 // used to rebuild the subtree (it is)
-type IBuildCustomElem = (arg0: any) => IVDOM.Children;
+type IBuildCustomElem = (arg0: any) => JSX.Element;
 type IBuildAttr = [IBuildCustomElem, IAttrs];
+
+
 /*
-export type StyleRules<ClassKey extends string = string> = Record<ClassKey, CSSProperties>
-export interface CSSProperties extends CSS.Properties<number | string> {
-    [k: string]: CSS.Properties<number | string>[keyof CSS.Properties] | CSSProperties;
-}
+----------------------------------------------
+---------------- Virtual DOM -----------------
+----------------------------------------------
 */
 
+export declare namespace IVDOM {
+    type Childrens = JSX.Element[];
+    type NodeModifier1 = (arg0?: HTMLElementEx) => HTMLElementEx;
+    type NodeModifier2 = (arg0?: HTMLElementEx) => undefined;
+    type NodeModifier = NodeModifier1 | NodeModifier2;
+    type FC = (props: KeyValuePair<string>) => JSX.Element;
+    type partialChildren = Pick<JSX.Element, 'attrs' | 'children'>;
+    type Event = MouseEvent | KeyboardEvent | PopStateEvent;
+    type EventHandler = (event: KeyboardEvent | MouseEvent) => void;
+    type Update = ($node: HTMLElementEx) => HTMLElementEx;
+    type ISetRef = (ref: HTMLElement) => void;
+    type UseState<S> = [S, (state: S) => void]
+    type Ref = { current: HTMLElement | null };
+    interface Hook<S = any, P = any> {
+        id: Symbol;
+        props?: KeyValuePair<any>;
+        state?: S;
+        vElem?: JSX.Element;
+        build?: (props: P) => JSX.Element;
+        effect?: Effect;
+        setter?: (state: S) => void;
+    }
 
-export class VDom implements IVDOM.Core {
-    public $App: IGlobal.DOM;
-    public $root: IGlobal.DOM;
-    public App: IVDOM.Children;
+    type EffectCbFn = () => void;
+    type EffectCb = () => EffectCbFn | void;
+    type EffectDep = any[] | undefined;
+    interface Effect {
+        mountCb: EffectCb;
+        unmountCb?: EffectCb;
+        dep: EffectDep;
+        lastDep?: string;
+        shouldRun?: boolean;
+    }
+   
+    interface HookMap {
+        [Symbol.toStringTag](): Hook;
+    }    
+}
+
+// implements IVDOM.Core
+export class VDom {
+    public $App: HTMLElementEx;
+    public $root: HTMLElementEx;
+    public App: JSX.Element;
     public hookMap: IVDOM.HookMap = {} as IVDOM.HookMap;
     public hookKey?: symbol = undefined;
     private $recycleBin: HTMLDivElement = document.createElement('div');
     private events: IEvents.Core = events;
-    private lastPageData: [IVDOM.CallSignature[], KeyValuePair<string>];
+    private lastPageData: [IVDOM.FC[], KeyValuePair<string>];
     private _safeLoadQueue: (() => void)[] = [];
     private namespacedTags = {
         svg: 'http://www.w3.org/2000/svg',
@@ -41,7 +78,7 @@ export class VDom implements IVDOM.Core {
     }
 
     constructor(rootSelector = 'body') {
-        this.$root = document.querySelector(rootSelector) as IGlobal.DOM;
+        this.$root = document.querySelector(rootSelector) as HTMLElementEx;
         classAutobind(this);
         window.addEventListener("load", this.onPageLoaded);
     }
@@ -65,8 +102,8 @@ export class VDom implements IVDOM.Core {
         tagName: ITagName, {
             attrs = {} as IAttrs,
             children = [] as IChilds,
-        } = {} as Partial<Omit<IVDOM.Children, 'tagName'>>
-    ): IVDOM.Children {
+        } = {} as Partial<Omit<JSX.Element, 'tagName'>>
+    ): JSX.Element {
         if (!attrs) attrs = {};
         if (!children) children = [];
 
@@ -75,13 +112,13 @@ export class VDom implements IVDOM.Core {
             delete attrs['children'];
         }
 
-        const elem: IVDOM.Children = Object.assign(Object.create(null), {
+        const elem: JSX.Element = Object.assign(Object.create(null), {
             tagName,
             attrs,
             children,
         });
 
-        forEach(children.filter(x => typeof x === 'object' && x !== null), (child: IVDOM.Children) => {
+        forEach(children.filter(x => typeof x === 'object' && x !== null), (child: JSX.Element) => {
             if (!child.attrs) child.attrs = {};
             child.parent = elem;
         })
@@ -94,7 +131,7 @@ export class VDom implements IVDOM.Core {
     }
 
     // assign a new attribute/event to given element
-    private setAttribute($el: IGlobal.DOM, k: string, v: any): IGlobal.DOM {
+    private setAttribute($el: HTMLElementEx, k: string, v: any): HTMLElementEx {
         if (this.isEventProp(k)) {
             if (v) this.events.addListener($el, k.substr(2).toLowerCase(), v);
         } else if (~['key', 'ref', 'html', 'build', 'hookKey'].indexOf(k)) {
@@ -124,7 +161,7 @@ export class VDom implements IVDOM.Core {
     }
 
     // remove attributes/event from given element
-    private removeAttribute($el: IGlobal.DOM, k: string): IGlobal.DOM {
+    private removeAttribute($el: HTMLElementEx, k: string): HTMLElementEx {
         if (this.isEventProp(k)) {
             this.events.removeListener($el);
         } else if (~['ref', 'key', 'html', 'build', 'hookKey'].indexOf(k)) {
@@ -141,7 +178,7 @@ export class VDom implements IVDOM.Core {
                     v.current = null;
                 }
             } else if (k === 'hookKey' && $el.vRef) {
-                const v: symbol = $el.vRef.attrs.hookKey;
+                const v: symbol = $el.vRef.attrs.hookKey as symbol;
                 const hook = this.hookMap[v];
                 console.info('remove HOOK ---', { ...hook }, 'e', $el.vRef)
                 delete this.hookMap[v];
@@ -155,30 +192,30 @@ export class VDom implements IVDOM.Core {
     }
 
     // remove all custom attribute from element
-    private removeAttributes($el: IGlobal.DOM, attrs: KeyValuePair<any>): void {
+    private removeAttributes($el: HTMLElementEx, attrs: KeyValuePair<any>): void {
         for (const k in attrs) { this.removeAttribute($el, k); }
     }
 
     // Replace existing DON elem with newly created one (note: newEl could be virtual DOM element or real element)
-    public mount($oldEl: IGlobal.DOM, newEl?: IGlobal.DOM | IVDOM.Children | Node): IGlobal.DOM {
-        const $newEl: any = newEl && newEl.nodeType ? newEl as IGlobal.DOM : this.render(newEl as IVDOM.Children);
+    public mount($oldEl: HTMLElementEx, newEl: JSX.Element): HTMLElementEx {
+        let $newEl: HTMLElementEx = this.render(newEl as JSX.Element);
+
         if (!this.$root || $oldEl === this.$root) {
             this.$root = $newEl;
         }
         // update $elem reference in vDom structure for replaced elem
         if ($oldEl.vRef && $newEl.nodeType === 1) {
             $oldEl.vRef.$elem = $newEl;
+            if (!$newEl.vRef) $newEl.vRef = newEl;
             if ($oldEl.vRef.parent) $newEl.vRef.parent = $oldEl.vRef.parent;
         }
         this.removeChilds($oldEl);
-        $oldEl.isMounted = false;
         $oldEl.replaceWith($newEl);
-        $newEl.isMounted = true;
         return $newEl;
     }
 
     // insert child into an parent virtual dom object
-    public insertChild($el: IGlobal.DOM, vChild: IVDOM.Children): void {
+    public insertChild($el: HTMLElementEx, vChild: JSX.Element): void {
         if (!$el || !$el.nodeType || !$el.vRef ) { console.error('Not assigned virtual DOM for real DOM', $el); }
         const vParent = $el.vRef;
         if (!vParent || !vParent.children) return;
@@ -186,7 +223,7 @@ export class VDom implements IVDOM.Core {
         const newVParent = { ...vParent, children };
         console.log('update childs for ', vParent);
         vChild.parent = vParent;
-        this.mount($el, this.render(newVParent) as IGlobal.DOM);
+        this.mount($el, newVParent);
     }
 
     // arranging the arrays
@@ -198,29 +235,22 @@ export class VDom implements IVDOM.Core {
         return zipped;
     }
 
-    /*
-        mountCb: cb,
-        dep: dep,
-        lastDep: undefined,
-        shouldRun: true,
-    */
-
     // diffing the attributes and return the patcher function (ex. updateAttrs(oldAttrs, newAttrs)(element))
-    private updateAttrs(oldAttrs: KeyValuePair<any>, newAttrs?: KeyValuePair<any>): IVDOM.NodeModifier {
+    private updateAttrs(oldAttrs: IAttrs, newAttrs?: IAttrs): IVDOM.NodeModifier {
         const updates: IVDOM.Update[] = [];
 
         // remove old attributes
         for (const k in oldAttrs) {
             if (newAttrs && k in newAttrs && !this.isEventProp(k)) continue;
-            updates.push(($node: IGlobal.DOM) => this.removeAttribute($node, k));
+            updates.push(($node: HTMLElementEx) => this.removeAttribute($node, k));
         }
 
         // set the new attribute
         if (newAttrs) {
-            objFor<IAttrs>(newAttrs, (k, v) => updates.push(($node: IGlobal.DOM) => this.setAttribute($node, k, v)));
+            objFor<IAttrs>(newAttrs, (k, v) => updates.push(($node: HTMLElementEx) => this.setAttribute($node, k, v)));
         }
         
-        return (($node: IGlobal.DOM) => {
+        return (($node: HTMLElementEx) => {
             forEach(updates, (update: IVDOM.Update) => update($node));
             // remove & cache the old hook
             const oldHook: IVDOM.Hook = oldAttrs.hookKey && this.hookMap[oldAttrs.hookKey];
@@ -234,7 +264,7 @@ export class VDom implements IVDOM.Core {
                 }
             }
             
-            if (oldHook && (!newAttrs || oldAttrs.hookKey !== newAttrs.hookKey)) {
+            if (oldHook && oldAttrs.hookKey && (!newAttrs || oldAttrs.hookKey !== newAttrs.hookKey)) {
                 delete this.hookMap[oldAttrs.hookKey];
             }
 
@@ -243,34 +273,34 @@ export class VDom implements IVDOM.Core {
     }
 
     // return patcher, which convert virtual dom child into real dom and insert into an parent element
-    private appendUpdateCb(child: IVDOM.Children) {
-        return ($node: IGlobal.DOM) => {
+    private appendUpdateCb(child: JSX.Element) {
+        return ($node: HTMLElementEx) => {
             $node.appendChild(this.render(child));
             return $node;
         }
     }
 
     // diffing the children between 2 virtual dom tree
-    private updateChildren(oldVChildren: IVDOM.Children[], newVChildren: IVDOM.Children[]) {
+    private updateChildren(oldVChildren: JSX.Element[], newVChildren: JSX.Element[]) {
         const childUpdates: IVDOM.NodeModifier[] = [];
         const additionalUpdates: IVDOM.NodeModifier[] = [];
         
-        forEach(oldVChildren, (oldVChild: IVDOM.Children, i: number) => childUpdates.push(this.update(oldVChild, newVChildren[i])));
+        forEach(oldVChildren, (oldVChild: JSX.Element, i: number) => childUpdates.push(this.update(oldVChild, newVChildren[i])));
         concat(additionalUpdates, map(newVChildren.slice(oldVChildren.length), this.appendUpdateCb));
 
-        return ($parent: IGlobal.DOM) => {
+        return ($parent: HTMLElementEx) => {
             const updates = this.zip(childUpdates, $parent.childNodes);
-            forEach(updates, ([update, $child]) => update($child as IGlobal.DOM));
+            forEach(updates, ([update, $child]) => update($child as HTMLElementEx));
             forEach(additionalUpdates, (update: any) => update($parent));
             return $parent;
         };
     }
 
     // compare the 2 virtual dom tree and return patcher function (ex. update(oldTree, newTree)(element))
-    private update(oldVTree: IVDOM.Children, newVTree?: IVDOM.Children): IVDOM.NodeModifier {
+    private update(oldVTree: JSX.Element, newVTree?: JSX.Element): IVDOM.NodeModifier {
         if (newVTree === undefined) {
             if (oldVTree && oldVTree.attrs && oldVTree.attrs.hookKey) { console.log('remove elem'); }
-            return ($node: IGlobal.DOM = this.$App) => {
+            return ($node: HTMLElementEx = this.$App) => {
                 this.removeElement($node);
                 return undefined;
             }
@@ -278,18 +308,18 @@ export class VDom implements IVDOM.Core {
 
         if (typeof oldVTree !== 'object' || typeof newVTree !== 'object') {
             if (oldVTree !== newVTree) {
-                return ($node: IGlobal.DOM = this.$App) => this.mount($node, newVTree);
+                return ($node: HTMLElementEx = this.$App) => this.mount($node, newVTree);
             } else {
-                return ($node: IGlobal.DOM = this.$App) => $node;
+                return ($node: HTMLElementEx = this.$App) => $node;
             }
         }
 
         if (oldVTree.tagName !== newVTree.tagName) {
             if (oldVTree.attrs.hookKey) { console.log('replace elem'); }
-            return (($node: IGlobal.DOM) => this.mount($node, newVTree)) as IVDOM.NodeModifier1;
+            return (($node: HTMLElementEx) => this.mount($node, newVTree)) as IVDOM.NodeModifier1;
         }
 
-        return ($node: IGlobal.DOM = this.$App) => {
+        return ($node: HTMLElementEx = this.$App) => {
             newVTree.$elem = $node;
             $node.vRef = newVTree;
             if (this.isElement($node)) {
@@ -304,7 +334,7 @@ export class VDom implements IVDOM.Core {
         return typeof $el === 'object' && $el.nodeType === 1;
     }
 
-    private injectAttrs(vElem: IVDOM.Children, attrs: IAttrs) {
+    private injectAttrs(vElem: JSX.Element, attrs: IAttrs) {
         objMerge(vElem.attrs, attrs);
         return vElem;
     }
@@ -315,24 +345,24 @@ export class VDom implements IVDOM.Core {
         childs.forEach((x, i) => {
             if (x && x.attrs && x.attrs.build) {
                 const [func, attrs] = x.attrs.build;
-                const newTree = func({...attrs, ...downAttrs}) as IVDOM.Children;
+                const newTree = func({...attrs, ...downAttrs}) as JSX.Element;
                 childs[i] = newTree;
             }
         });
     }
 
-    public find(tagName: ITagName, attrs: KeyValuePair<any>, container: IVDOM.Children = this.App) {
+    public find(tagName: ITagName, attrs: KeyValuePair<any>, container: JSX.Element = this.App) {
         const attrArr = attrs ? attrs.split(',').map(x => x.split('=')) : [];
     }
 
     // loop over all child and call the removeElement method
-    private removeChilds($elem: IGlobal.DOM): void {
+    private removeChilds($elem: HTMLElementEx): void {
         if (!$elem.children) { return; }
-        forEach(toArray($elem.children), ($el) => this.removeElement($el as IGlobal.DOM));
+        forEach(toArray($elem.children), ($el) => this.removeElement($el as HTMLElementEx));
     }
 
     // remove real dom element but also remove attributes and set isMount property to false (call unmount callback)
-    public removeElement($elem: IGlobal.DOM): void {
+    public removeElement($elem: HTMLElementEx): void {
         if (!$elem) { return; }
         if ($elem.children) { this.removeChilds($elem); }
         const oldTree = $elem.vRef;
@@ -350,56 +380,44 @@ export class VDom implements IVDOM.Core {
     }
 
     // convert virtual dom element into real dom element and insert his childrens
-    public renderElem({ tagName = 'div', attrs, children = [] }: IVDOM.Children) {
+    public renderElem({ tagName = 'div', attrs, children = [] }: JSX.Element) {
         const namespace: string = this.namespacedTags[tagName];
-        const $el: IGlobal.DOM = namespace
-            ? document.createElementNS(namespace, tagName) as IGlobal.DOM
-            : document.createElement(tagName) as IGlobal.DOM;
+        const $el: HTMLElementEx = namespace
+            ? document.createElementNS(namespace, tagName) as HTMLElementEx
+            : document.createElement(tagName) as HTMLElementEx;
         this.updateAttrs([], attrs)($el);
-        forEach(children, (x: IVDOM.Children) => $el.appendChild(this.render(x)));
+        forEach(children, (x: JSX.Element) => $el.appendChild(this.render(x)));
         return $el;
     }
 
     // convert virtual dom object into real dom element, assign his virtual dom object and return the real dom
-    public render(vNode: IVDOM.Children): IGlobal.DOM | Node {
-        if (typeof vNode !== 'object') return document.createTextNode(vNode || '');
-        const $elem: IGlobal.DOM = this.renderElem(vNode);
+    public render(vNode: JSX.Element): HTMLElementEx {
+        if (typeof vNode !== 'object') return document.createTextNode(vNode || '') as unknown as HTMLElementEx;
+        const $elem: HTMLElementEx = this.renderElem(vNode);
         $elem.vRef = vNode;     // get virtual DOM from real Elem
         vNode.$elem = $elem;    // get the real DOM from virtual DOM
         return $elem;
     }
 
     // update & render a virtual dom subtree
-    public renderSubTree($oldElem: IGlobal.DOM, a: IBuildCustomElem, b: any): void {
+    public renderSubTree($oldElem: HTMLElementEx, a: IBuildCustomElem, b: any): void {
         const oldTree = $oldElem.vRef;
-        b['oldSym'] = (oldTree as any).attrs.hookKey;
+        if (oldTree) b['oldSym'] = oldTree.attrs.hookKey;
         const newTree = this.build(a, b);
         if (!oldTree) {
             console.error('Virtual tree on dom not exist!');
             this.mount($oldElem, newTree);
             return;
         }
-        const vParent = oldTree.parent as IVDOM.Children;
+        const vParent = oldTree.parent as JSX.Element;
         const idx = vParent.children.findIndex(x => x === oldTree);
         vParent.children[idx === -1 ? 0 : idx] = newTree;
         newTree.parent = vParent;
         // newTree.attrs.hookKey = oldTree.attrs.hookKey;
         // newTree.attrs.build = oldTree.attrs.build;
         $oldElem.vRef = newTree;
-        const $newElem = this.update(oldTree, newTree)($oldElem) as IGlobal.DOM;
+        const $newElem = this.update(oldTree, newTree)($oldElem) as HTMLElementEx;
         $newElem.vRef = newTree;
-    }
-
-    // update & render the whole virtual dom tree
-    public renderWholeTree(vTree: IVDOM.Children): void {
-        if (!this.$App) {
-            this.App = vTree;
-            this.$App = this.renderElem(this.App);
-            this.$root.appendChild(this.$App);
-        } else {
-            this.$App = this.update(this.App, vTree)(this.$App) as IGlobal.DOM;
-            this.App = vTree;
-        }
     }
 
     public hookSetter<S>(key: symbol) {
@@ -466,8 +484,8 @@ export class VDom implements IVDOM.Core {
         };
     }
 
-    public build(element: string | IBuildCustomElem, attrs: IAttrs = {}, ...children: IVDOM.Children[] | IVDOM.Children[][]): IVDOM.Children {
-        children = (children ? flat(children as IVDOM.Children[], 1) : []);
+    public build(element: string | IBuildCustomElem, attrs: IAttrs = {}, ...children: JSX.Element[] | JSX.Element[][]): JSX.Element {
+        children = (children ? flat(children as JSX.Element[], 1) : []);
         if (typeof element === 'function') {
             let key = Symbol('fn');
             if (attrs && attrs['oldSym']) {
@@ -476,7 +494,7 @@ export class VDom implements IVDOM.Core {
             }
             this.hookKey = key;
             attrs = { ...(attrs || {}), children: children};
-            const vElem = element(attrs) as IVDOM.Children;
+            const vElem = element(attrs) as JSX.Element;
             vElem.attrs.build = [element, attrs] as IBuildAttr;
             if (vElem.tagName === 'form' && attrs['model']) {
                 this.attrDown(vElem.children, { model: attrs.model } as IAttrs);
@@ -491,20 +509,41 @@ export class VDom implements IVDOM.Core {
             this.hookKey = undefined;
             return vElem;
         }
-        return this.ce(element, { attrs, children } as Omit<IVDOM.Children, 'tagName'>);
+        return this.ce(element, { attrs, children } as Omit<JSX.Element, 'tagName'>);
     }
 
-    // rerender the virtual dom tree based on route data
-    public loadPage(routeComponents: IVDOM.CallSignature[], params: KeyValuePair<string>): void {
-        let vComponent: IVDOM.Children | undefined;
+    // rerender the virtual dom tree based on route data (function array with params)
+    public loadPage(routeComponents: IBuildCustomElem[], params: KeyValuePair<string>): void {
+        let vComponent: JSX.Element | undefined;
         this.lastPageData = [routeComponents, params];
         document.title = 'Loading';
+        if (!routeComponents || !routeComponents.length) { return console.error('Missing route components'); }
+        let vTree: JSX.Element = this.build(routeComponents.pop() as IBuildCustomElem, params);
+        
+        do {
+            const cmp = routeComponents.pop();
+            if (!cmp) break;
+            const vElem = this.build(cmp, params);
+            vElem.children.push(vTree);
+            vTree = vElem;
+        } while (vComponent);
 
-        forEach(routeComponents, (currentVComponent: IVDOM.CallSignature) => {
-            vComponent = currentVComponent(vComponent ? [vComponent] : [], params);
-        });
-        if (!vComponent) return console.error('vComponent not exist!');
-        this.renderWholeTree(vComponent);
+        vTree.parent = {
+            tagName: 'div',
+            attrs: {},
+            children: [vTree]
+        };
+
+        if (!this.$App) {
+            this.App = vTree;
+            this.$App = this.render(this.App) as HTMLElementEx;
+            this.$App.vRef = this.App;
+            this.$root.appendChild(this.$App);
+        } else {
+            this.$App = this.update(this.App, vTree)(this.$App) as HTMLElementEx;
+            this.App = vTree;
+        }        
+
     }
 
     // refresh the whole dom tree with last data
@@ -530,8 +569,28 @@ export const useEffect = vDom.useEffect.bind(vDom);
 export const useRef = vDom.useRef;
 
 declare global {
+    interface HTMLElementEx extends HTMLElement{
+        childNodes: NodeListOf<ChildNode>;
+        dataset: KeyValuePair<string>;
+        nodeType: number;
+        setAttribute: (key: string, value: any) => void;
+        uuid?: string;
+        vRef?: JSX.Element;
+    }
+
     export namespace JSX {
-        interface Element extends IVDOM.Children { }
+        
+        interface Attrs extends KeyValuePair<any> {
+            hookKey?: symbol;
+        }
+
+        interface Element { 
+            attrs: Attrs,
+            children: JSX.Element[];
+            $elem?: HTMLElementEx;
+            parent?: JSX.Element;
+            tagName: string;
+        }
         interface IntrinsicElements { 
             [key: string]: any;
         }
